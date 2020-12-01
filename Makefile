@@ -22,6 +22,10 @@ else
     VECHO = @printf
 endif
 
+ifeq ("$(DEBUG)","1")
+	CFLAGS +=  -ggdb -fno-omit-frame-pointer
+endif
+
 OUT ?= build
 BIN = $(OUT)/rv32emu
 
@@ -37,6 +41,8 @@ OBJS = \
 	syscall_sdl.o
 
 deps := $(OBJS:%.o=%.o.d)
+
+riscv.o: CFLAGS += -fno-gcse -fno-crossjumping
 
 %.o: %.c
 	$(VECHO) "  CC\t$@\n"

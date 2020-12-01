@@ -773,43 +773,75 @@ static bool op_amo(struct riscv_t *rv, uint32_t inst)
 // opcode handler type
 typedef bool (*opcode_t)(struct riscv_t *rv, uint32_t inst);
 
-// clang-format off
-// opcode dispatch table
-static const opcode_t opcodes[] = {
-//  000        001          010       011          100        101       110   111
-    op_load,   op_load_fp,  NULL,     op_misc_mem, op_op_imm, op_auipc, NULL, NULL, // 00
-    op_store,  op_store_fp, NULL,     op_amo,      op_op,     op_lui,   NULL, NULL, // 01
-    op_madd,   op_msub,     op_nmsub, op_nmadd,    op_fp,     NULL,     NULL, NULL, // 10
-    op_branch, op_jalr,     NULL,     op_jal,      op_system, NULL,     NULL, NULL, // 11
-};
-// clang-format on
-
 void rv_step(struct riscv_t *rv, int32_t cycles)
 {
     assert(rv);
     const uint64_t cycles_target = rv->csr_cycle + cycles;
+    uint32_t inst, index;
 
-    while (rv->csr_cycle < cycles_target && !rv->halt) {
-        // fetch the next instruction
-        const uint32_t inst = rv->io.mem_ifetch(rv, rv->PC);
+    // clang-format off
+    const void *jump_table[] = {
+    //  000        001          010       011          100        101       110   111
+        &&op_load,  op_load_fp,  NULL,     op_misc_mem, &&op_op_imm, &&op_auipc, NULL, NULL, // 00
+        &&op_store, op_store_fp, NULL,     op_amo,      &&op_op,     &&op_lui,   NULL, NULL, // 01
+        op_madd,    op_msub,     op_nmsub, op_nmadd,    op_fp,       NULL,       NULL, NULL, // 10
+        &&op_branch,&&op_jalr,   NULL,     &&op_jal,    &&op_system, NULL,       NULL, NULL, // 11
+    };
+    // clang-format on
 
-        // standard uncompressed instruction
-        if ((inst & 3) == 3) {
-            const uint32_t index = (inst & INST_6_2) >> 2;
-
-	    // dispatch this opcode
-            const opcode_t op = opcodes[index];
-            assert(op);
-            if (!op(rv, inst))
-                break;
-
-            // increment the cycles csr
-            rv->csr_cycle++;
-        } else {
-            // TODO: compressed instruction
-            assert(!"Unreachable");
-        }
+#define DISPATCH()                                     \
+    {                                                  \
+        if (rv->csr_cycle > cycles_target || rv->halt) \
+            goto exit;                                 \
+        else {                                         \
+            /* fetch the next instruction */           \
+            inst = rv->io.mem_ifetch(rv, rv->PC);      \
+            /* standard uncompressed instruction */    \
+            if ((inst & 3) == 3) {                     \
+                index = (inst & INST_6_2) >> 2;        \
+                goto *jump_table[index];               \
+            } else {                                   \
+                /* TODO: compressed instruction*/      \
+                assert(!"Unreachable");                \
+            }                                          \
+        }                                              \
     }
+
+#define EXEC(op)                      \
+    {                                 \
+        /* dispatch this opcode */    \
+        assert(op);                   \
+        if (!op(rv, inst))            \
+            goto exit;                \
+        /* increment the cycles csr*/ \
+        rv->csr_cycle++;              \
+    }
+
+#define TARGET(x) \
+x:                \
+    EXEC(x);      \
+    DISPATCH();
+
+    DISPATCH();
+
+    // main loop
+    TARGET(op_load)
+    TARGET(op_op_imm)
+    TARGET(op_auipc)
+    TARGET(op_store)
+    TARGET(op_op)
+    TARGET(op_lui)
+    TARGET(op_branch)
+    TARGET(op_jalr)
+    TARGET(op_jal)
+    TARGET(op_system)
+
+exit:
+    return;
+
+#undef DISPATCH
+#undef EXEC
+#undef TARGET
 }
 
 riscv_user_t rv_userdata(struct riscv_t *rv)
