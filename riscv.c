@@ -137,8 +137,9 @@ static bool op_misc_mem(struct riscv_t *rv, uint32_t inst UNUSED)
     rv->PC += 4;
     return true;
 }
+#define OP_MISC_MEM &&op_misc_mem
 #else
-#define op_misc_mem NULL
+#define OP_MISC_MEM NULL
 #endif  // ENABLE_Zifencei
 
 static bool op_op_imm(struct riscv_t *rv, uint32_t inst)
@@ -757,18 +758,19 @@ static bool op_amo(struct riscv_t *rv, uint32_t inst)
         rv->X[rv_reg_zero] = 0;
     return true;
 }
+#define OP_AMO &&op_amo
 #else
-#define op_amo NULL
+#define OP_AMO NULL
 #endif  // ENABLE_RV32A
 
 /* No RV32F support */
-#define op_load_fp NULL
-#define op_store_fp NULL
-#define op_fp NULL
-#define op_madd NULL
-#define op_msub NULL
-#define op_nmsub NULL
-#define op_nmadd NULL
+#define OP_LOAD_FP NULL
+#define OP_STORE_FP NULL
+#define OP_FP NULL
+#define OP_MADD NULL
+#define OP_MSUB NULL
+#define OP_NMSUB NULL
+#define OP_NMADD NULL
 
 // opcode handler type
 typedef bool (*opcode_t)(struct riscv_t *rv, uint32_t inst);
@@ -782,16 +784,16 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
     // clang-format off
     const void *jump_table[] = {
     //  000        001          010       011          100        101       110   111
-        &&op_load,  op_load_fp,  NULL,     op_misc_mem, &&op_op_imm, &&op_auipc, NULL, NULL, // 00
-        &&op_store, op_store_fp, NULL,     op_amo,      &&op_op,     &&op_lui,   NULL, NULL, // 01
-        op_madd,    op_msub,     op_nmsub, op_nmadd,    op_fp,       NULL,       NULL, NULL, // 10
+        &&op_load,  OP_LOAD_FP,  NULL,     OP_MISC_MEM, &&op_op_imm, &&op_auipc, NULL, NULL, // 00
+        &&op_store, OP_STORE_FP, NULL,     OP_AMO,      &&op_op,     &&op_lui,   NULL, NULL, // 01
+        OP_MADD,    OP_MSUB,     OP_NMSUB, OP_NMADD,    OP_FP,       NULL,       NULL, NULL, // 10
         &&op_branch,&&op_jalr,   NULL,     &&op_jal,    &&op_system, NULL,       NULL, NULL, // 11
     };
     // clang-format on
 
 #define DISPATCH()                                     \
     {                                                  \
-        if (rv->csr_cycle > cycles_target || rv->halt) \
+        if (rv->csr_cycle >= cycles_target || rv->halt) \
             goto exit;                                 \
         else {                                         \
             /* fetch the next instruction */           \
@@ -835,6 +837,12 @@ x:                \
     TARGET(op_jalr)
     TARGET(op_jal)
     TARGET(op_system)
+#ifdef ENABLE_Zifencei
+    TARGET(op_misc_mem)
+#endif
+#ifdef ENABLE_RV32A
+    TARGET(op_amo)
+#endif
 
 exit:
     return;
