@@ -8,6 +8,10 @@
 /* enable program trace mode */
 static bool opt_trace = false;
 
+/* RISCV compliance test mode */
+static bool opt_test = false;
+static char *signature_out_file;
+
 /* target executable */
 static const char *opt_prog_name = "a.out";
 
@@ -118,6 +122,16 @@ static bool parse_args(int argc, char **args)
                 opt_trace = true;
                 continue;
             }
+            if (!strcmp(arg, "--test")) {
+                opt_test = true;
+                if (i + 1 >= argc) {
+                    fprintf(stderr,
+                            "Filename for signature output required in test mode.\n");
+                    return false;
+                }
+                signature_out_file = args[++i];
+                continue;
+            }
             /* otherwise, error */
             fprintf(stderr, "Unknown argument '%s'\n", arg);
             return false;
@@ -128,6 +142,28 @@ static bool parse_args(int argc, char **args)
 
     return true;
 }
+
+void dump_test_signature(struct riscv_t *rv, elf_t *elf)
+{
+    const struct Elf32_Sym *sig_start, *sig_end;
+    FILE *f = fopen(signature_out_file, "w");
+    if (!f) {
+        fprintf(stderr, "Cannot open signature output file.\n");
+        return;
+    }
+
+    sig_start = elf_get_symbol(elf, "begin_signature");
+    sig_end = elf_get_symbol(elf, "end_signature");
+
+    state_t *s = rv_userdata(rv);
+
+    for(Elf32_Addr addr = sig_start->st_value; addr < sig_end->st_value; addr += 4) {
+        fprintf(f, "%08x\n", memory_read_w(s->mem, addr));
+    }
+
+    fclose(f);
+}
+
 
 int main(int argc, char **args)
 {
@@ -175,6 +211,11 @@ int main(int argc, char **args)
         run_and_trace(rv, elf);
     } else {
         run(rv);
+    }
+
+    /* dump test result in test mode */
+    if (opt_test) {
+        dump_test_signature(rv, elf);
     }
 
     /* finalize the RISC-V runtime */
