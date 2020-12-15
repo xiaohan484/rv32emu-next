@@ -1,4 +1,4 @@
-CFLAGS = -std=gnu99 -O2 -Wall -Wextra
+CFLAGS = -std=gnu99 -Wall -Wextra
 CFLAGS += -include common.h
 
 # Base configurations for RISC-V extensions
@@ -28,7 +28,9 @@ else
 endif
 
 ifeq ("$(DEBUG)","1")
-	CFLAGS +=  -ggdb -fno-omit-frame-pointer
+	CFLAGS += -ggdb -fno-omit-frame-pointer
+else
+	CFLAGS += -O2
 endif
 
 OUT ?= build
