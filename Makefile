@@ -13,6 +13,11 @@ CFLAGS += -D ENABLE_SDL
 CFLAGS += `sdl2-config --cflags`
 LDFLAGS += `sdl2-config --libs`
 
+# Whether to enable computed goto in riscv.c
+ifeq ("$(NO_COMPUTED_GOTO)", "")
+	CFLAGS += -D ENABLE_COMPUTED_GOTO
+endif
+
 # Control the build verbosity
 ifeq ("$(VERBOSE)","1")
     Q :=
