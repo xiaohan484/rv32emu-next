@@ -15,7 +15,7 @@ LDFLAGS += `sdl2-config --libs`
 
 # Whether to enable computed goto in riscv.c
 ifeq ("$(NO_COMPUTED_GOTO)", "")
-	CFLAGS += -D ENABLE_COMPUTED_GOTO
+riscv.o: CFLAGS += -fno-gcse -fno-crossjumping -D ENABLE_COMPUTED_GOTO
 endif
 
 # Control the build verbosity
@@ -49,7 +49,6 @@ OBJS = \
 
 deps := $(OBJS:%.o=%.o.d)
 
-riscv.o: CFLAGS += -fno-gcse -fno-crossjumping
 
 %.o: %.c
 	$(VECHO) "  CC\t$@\n"
