@@ -1,6 +1,6 @@
 RUN_TARGET= $(TARGETDIR)/build/rv32emu $(<) \
     $(RISCV_TARGET_FLAGS) \
-    --test $(*).signature.output \
+    --compliance $(*).signature.output \
     1>$(@) 2>&1
 
 RISCV_PREFIX   ?= riscv32-unknown-elf-

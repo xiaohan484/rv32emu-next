@@ -9,7 +9,7 @@
 static bool opt_trace = false;
 
 /* RISCV compliance test mode */
-static bool opt_test = false;
+static bool opt_compliance = false;
 static char *signature_out_file;
 
 /* target executable */
@@ -105,7 +105,8 @@ static void print_usage(const char *filename)
             "RV32I[MA] Emulator which loads an ELF file to execute.\n"
             "Usage: %s [options] [filename]\n"
             "Options:\n"
-            "  --trace : print executable trace\n",
+            "  --trace : print executable trace\n"
+            "  --compliance [signature filename] : dump signature to the given file for compliance test\n",
             filename);
 }
 
@@ -122,11 +123,11 @@ static bool parse_args(int argc, char **args)
                 opt_trace = true;
                 continue;
             }
-            if (!strcmp(arg, "--test")) {
-                opt_test = true;
+            if (!strcmp(arg, "--compliance")) {
+                opt_compliance = true;
                 if (i + 1 >= argc) {
                     fprintf(stderr,
-                            "Filename for signature output required in test mode.\n");
+                            "Filename for signature output required in compliance mode.\n");
                     return false;
                 }
                 signature_out_file = args[++i];
@@ -145,19 +146,26 @@ static bool parse_args(int argc, char **args)
 
 void dump_test_signature(struct riscv_t *rv, elf_t *elf)
 {
-    const struct Elf32_Sym *sig_start, *sig_end;
+    uint32_t start = 0, end = 0;
+    const struct Elf32_Sym *sym;
     FILE *f = fopen(signature_out_file, "w");
     if (!f) {
         fprintf(stderr, "Cannot open signature output file.\n");
         return;
     }
 
-    sig_start = elf_get_symbol(elf, "begin_signature");
-    sig_end = elf_get_symbol(elf, "end_signature");
+    /* use the entire .data section as a fallback */
+    elf_get_data_section_range(elf, &start, &end);
+    /* try and access the exact signature range */
+    if ((sym = elf_get_symbol(elf, "begin_signature")))
+        start = sym->st_value;
+    if ((sym = elf_get_symbol(elf, "end_signature")))
+        end = sym->st_value;
 
     state_t *s = rv_userdata(rv);
 
-    for(Elf32_Addr addr = sig_start->st_value; addr < sig_end->st_value; addr += 4) {
+    /* dump it word by word */
+    for (uint32_t addr = start; addr < end; addr += 4) {
         fprintf(f, "%08x\n", memory_read_w(s->mem, addr));
     }
 
@@ -214,7 +222,7 @@ int main(int argc, char **args)
     }
 
     /* dump test result in test mode */
-    if (opt_test) {
+    if (opt_compliance) {
         dump_test_signature(rv, elf);
     }
 
