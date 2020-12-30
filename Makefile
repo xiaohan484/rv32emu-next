@@ -1,3 +1,7 @@
+ifeq ($(origin CC), "default")
+	CC = gcc
+endif
+
 CFLAGS = -std=gnu99 -Wall -Wextra
 CFLAGS += -include common.h
 
@@ -14,8 +18,12 @@ CFLAGS += `sdl2-config --cflags`
 LDFLAGS += `sdl2-config --libs`
 
 # Whether to enable computed goto in riscv.c
-ifeq ("$(NO_COMPUTED_GOTO)", "")
-riscv.o: CFLAGS += -fno-gcse -fno-crossjumping -D ENABLE_COMPUTED_GOTO
+ENABLE_COMPUTED_GOTO ?= 1
+ifeq ("$(ENABLE_COMPUTED_GOTO)", "1")
+riscv.o: CFLAGS += -D ENABLE_COMPUTED_GOTO
+	ifeq ("$(CC)", "gcc")
+riscv.o: CFLAGS += -fno-gcse -fno-crossjumping 
+	endif
 endif
 
 # Control the build verbosity
