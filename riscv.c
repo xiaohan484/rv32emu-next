@@ -785,7 +785,7 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
     assert(rv);
     const uint64_t cycles_target = rv->csr_cycle + cycles;
     uint32_t inst, index;
-
+// clang-format off
 #define OP_UNIMP op_unimp
 #ifdef ENABLE_COMPUTED_GOTO
     #define OP(instr) &&op_##instr
@@ -795,7 +795,6 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
     #define TABLE_TYPE const opcode_t
 #endif
 
-    // clang-format off
     TABLE_TYPE jump_table[] = {
     //  000         001           010        011           100         101        110   111
         OP(load),   OP(load_fp),  OP(unimp), OP(misc_mem), OP(op_imm), OP(auipc), OP(unimp), OP(unimp), // 00
@@ -803,24 +802,22 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
         OP(madd),   OP(msub),     OP(nmsub), OP(nmadd),    OP(fp),     OP(unimp), OP(unimp), OP(unimp), // 10
         OP(branch), OP(jalr),     OP(unimp), OP(jal),      OP(system), OP(unimp), OP(unimp), OP(unimp), // 11
     };
-    // clang-format on
+// clang-format on
 
 #ifdef ENABLE_COMPUTED_GOTO
 #define DISPATCH()                                      \
     {                                                   \
         if (rv->csr_cycle >= cycles_target || rv->halt) \
             goto exit;                                  \
-        else {                                          \
-            /* fetch the next instruction */            \
-            inst = rv->io.mem_ifetch(rv, rv->PC);       \
-            /* standard uncompressed instruction */     \
-            if ((inst & 3) == 3) {                      \
-                index = (inst & INST_6_2) >> 2;         \
-                goto *jump_table[index];                \
-            } else {                                    \
-                /* TODO: compressed instruction*/       \
-                assert(!"Unreachable");                 \
-            }                                           \
+        /* fetch the next instruction */                \
+        inst = rv->io.mem_ifetch(rv, rv->PC);           \
+        /* standard uncompressed instruction */         \
+        if ((inst & 3) == 3) {                          \
+            index = (inst & INST_6_2) >> 2;             \
+            goto *jump_table[index];                    \
+        } else {                                        \
+            /* TODO: compressed instruction*/           \
+            assert(!"Unreachable");                     \
         }                                               \
     }
 
@@ -832,11 +829,12 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
         /* increment the cycles csr*/ \
         rv->csr_cycle++;              \
     }
-
+// clang-format off
 #define TARGET(instr)         \
 op_##instr :                  \
     EXEC(instr);              \
     DISPATCH();
+    // clang-format on
 
     DISPATCH();
 
