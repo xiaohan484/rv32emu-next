@@ -5,6 +5,7 @@
 
 #include "riscv.h"
 #include "riscv_private.h"
+#include "statistics.h"
 
 static void rv_except_inst_misaligned(struct riscv_t *rv, uint32_t old_pc)
 {
@@ -93,6 +94,7 @@ static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
     switch (funct3) {
     case 0:  // LB
         rv->X[rd] = sign_extend_b(rv->io.mem_read_b(rv, addr));
+        instruction_count(LB);
         break;
     case 1:  // LH
         if (addr & 1) {
@@ -100,6 +102,7 @@ static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
             return false;
         }
         rv->X[rd] = sign_extend_h(rv->io.mem_read_s(rv, addr));
+        instruction_count(LH);
         break;
     case 2:  // LW
         if (addr & 3) {
@@ -107,9 +110,11 @@ static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
             return false;
         }
         rv->X[rd] = rv->io.mem_read_w(rv, addr);
+        instruction_count(LW);
         break;
     case 4:  // LBU
         rv->X[rd] = rv->io.mem_read_b(rv, addr);
+        instruction_count(LBU);
         break;
     case 5:  // LHU
         if (addr & 1) {
@@ -117,6 +122,7 @@ static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
             return false;
         }
         rv->X[rd] = rv->io.mem_read_s(rv, addr);
+        instruction_count(LHU);
         break;
     default:
         rv_except_illegal_inst(rv);
@@ -153,33 +159,42 @@ static bool op_op_imm(struct riscv_t *rv, uint32_t inst)
     switch (funct3) {
     case 0:  // ADDI
         rv->X[rd] = (int32_t)(rv->X[rs1]) + imm;
+        instruction_count(ADDI);
         break;
     case 1:  // SLLI
         rv->X[rd] = rv->X[rs1] << (imm & 0x1f);
+        instruction_count(SLLI);
         break;
     case 2:  // SLTI
         rv->X[rd] = ((int32_t)(rv->X[rs1]) < imm) ? 1 : 0;
+        instruction_count(SLTI);
         break;
     case 3:  // SLTIU
         rv->X[rd] = (rv->X[rs1] < (uint32_t) imm) ? 1 : 0;
+        instruction_count(SLTIU);
         break;
     case 4:  // XORI
         rv->X[rd] = rv->X[rs1] ^ imm;
+        instruction_count(XORI);
         break;
     case 5:
         if (imm & ~0x1f) {
             // SRAI
             rv->X[rd] = ((int32_t) rv->X[rs1]) >> (imm & 0x1f);
+            instruction_count(SRAI);
         } else {
             // SRLI
             rv->X[rd] = rv->X[rs1] >> (imm & 0x1f);
+            instruction_count(SRLI);
         }
         break;
     case 6:  // ORI
         rv->X[rd] = rv->X[rs1] | imm;
+        instruction_count(ORI);
         break;
     case 7:  // ANDI
         rv->X[rd] = rv->X[rs1] & imm;
+        instruction_count(ANDI);
         break;
     default:
         rv_except_illegal_inst(rv);
@@ -209,6 +224,8 @@ static bool op_auipc(struct riscv_t *rv, uint32_t inst)
     // enforce zero register
     if (rd == rv_reg_zero)
         rv->X[rv_reg_zero] = 0;
+
+    instruction_count(AUIPC);
     return true;
 }
 
@@ -228,6 +245,7 @@ static bool op_store(struct riscv_t *rv, uint32_t inst)
     switch (funct3) {
     case 0:  // SB
         rv->io.mem_write_b(rv, addr, data);
+        instruction_count(SB);
         break;
     case 1:  // SH
         if (addr & 1) {
@@ -235,6 +253,7 @@ static bool op_store(struct riscv_t *rv, uint32_t inst)
             return false;
         }
         rv->io.mem_write_s(rv, addr, data);
+        instruction_count(SH);
         break;
     case 2:  // SW
         if (addr & 3) {
@@ -242,6 +261,7 @@ static bool op_store(struct riscv_t *rv, uint32_t inst)
             return false;
         }
         rv->io.mem_write_w(rv, addr, data);
+        instruction_count(SW);
         break;
     default:
         rv_except_illegal_inst(rv);
@@ -269,27 +289,35 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
         switch (funct3) {
         case 0b000:  // ADD
             rv->X[rd] = (int32_t)(rv->X[rs1]) + (int32_t)(rv->X[rs2]);
+            instruction_count(ADD);
             break;
         case 0b001:  // SLL
             rv->X[rd] = rv->X[rs1] << (rv->X[rs2] & 0x1f);
+            instruction_count(SLL);
             break;
         case 0b010:  // SLT
             rv->X[rd] = ((int32_t)(rv->X[rs1]) < (int32_t)(rv->X[rs2])) ? 1 : 0;
+            instruction_count(SLT);
             break;
         case 0b011:  // SLTU
             rv->X[rd] = (rv->X[rs1] < rv->X[rs2]) ? 1 : 0;
+            instruction_count(SLTU);
             break;
         case 0b100:  // XOR
             rv->X[rd] = rv->X[rs1] ^ rv->X[rs2];
+            instruction_count(XOR);
             break;
         case 0b101:  // SRL
             rv->X[rd] = rv->X[rs1] >> (rv->X[rs2] & 0x1f);
+            instruction_count(SRL);
             break;
         case 0b110:  // OR
             rv->X[rd] = rv->X[rs1] | rv->X[rs2];
+            instruction_count(OR);
             break;
         case 0b111:  // AND
             rv->X[rd] = rv->X[rs1] & rv->X[rs2];
+            instruction_count(AND);
             break;
         default:
             rv_except_illegal_inst(rv);
@@ -302,19 +330,23 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
         switch (funct3) {
         case 0b000:  // MUL
             rv->X[rd] = (int32_t) rv->X[rs1] * (int32_t) rv->X[rs2];
+            instruction_count(MUL);
             break;
         case 0b001: {  // MULH
             const int64_t a = (int32_t) rv->X[rs1];
             const int64_t b = (int32_t) rv->X[rs2];
             rv->X[rd] = ((uint64_t)(a * b)) >> 32;
+            instruction_count(MULH);
         } break;
         case 0b010: {  // MULHSU
             const int64_t a = (int32_t) rv->X[rs1];
             const uint64_t b = rv->X[rs2];
             rv->X[rd] = ((uint64_t)(a * b)) >> 32;
+            instruction_count(MULHSU);
         } break;
         case 0b011:  // MULHU
             rv->X[rd] = ((uint64_t) rv->X[rs1] * (uint64_t) rv->X[rs2]) >> 32;
+            instruction_count(MULHU);
             break;
         case 0b100: {  // DIV
             const int32_t dividend = (int32_t) rv->X[rs1];
@@ -326,6 +358,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             } else {
                 rv->X[rd] = dividend / divisor;
             }
+            instruction_count(DIV);
         } break;
         case 0b101: {  // DIVU
             const uint32_t dividend = rv->X[rs1];
@@ -335,6 +368,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             } else {
                 rv->X[rd] = dividend / divisor;
             }
+            instruction_count(DIVU);
         } break;
         case 0b110: {  // REM
             const int32_t dividend = rv->X[rs1];
@@ -346,6 +380,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             } else {
                 rv->X[rd] = dividend % divisor;
             }
+            instruction_count(REM);
         } break;
         case 0b111: {  // REMU
             const uint32_t dividend = rv->X[rs1];
@@ -355,6 +390,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             } else {
                 rv->X[rd] = dividend % divisor;
             }
+            instruction_count(REMU);
         } break;
         default:
             rv_except_illegal_inst(rv);
@@ -366,9 +402,11 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
         switch (funct3) {
         case 0b000:  // SUB
             rv->X[rd] = (int32_t)(rv->X[rs1]) - (int32_t)(rv->X[rs2]);
+            instruction_count(SUB);
             break;
         case 0b101:  // SRA
             rv->X[rd] = ((int32_t) rv->X[rs1]) >> (rv->X[rs2] & 0x1f);
+            instruction_count(SRA);
             break;
         default:
             rv_except_illegal_inst(rv);
@@ -400,6 +438,7 @@ static bool op_lui(struct riscv_t *rv, uint32_t inst)
     // enforce zero register
     if (rd == rv_reg_zero)
         rv->X[rv_reg_zero] = 0;
+    instruction_count(LUI);
     return true;
 }
 
@@ -411,6 +450,8 @@ static bool op_branch(struct riscv_t *rv, uint32_t inst)
     const int32_t imm = dec_btype_imm(inst);
     const uint32_t rs1 = dec_rs1(inst);
     const uint32_t rs2 = dec_rs2(inst);
+    branch_count();
+
 
     // track if branch is taken or not
     bool taken = false;
@@ -419,21 +460,28 @@ static bool op_branch(struct riscv_t *rv, uint32_t inst)
     switch (func3) {
     case 0:  // BEQ
         taken = (rv->X[rs1] == rv->X[rs2]);
+        instruction_count(BEQ);
+
         break;
     case 1:  // BNE
         taken = (rv->X[rs1] != rv->X[rs2]);
+        instruction_count(BNE);
         break;
     case 4:  // BLT
         taken = ((int32_t) rv->X[rs1] < (int32_t) rv->X[rs2]);
+        instruction_count(BLT);
         break;
     case 5:  // BGE
         taken = ((int32_t) rv->X[rs1] >= (int32_t) rv->X[rs2]);
+        instruction_count(BGE);
         break;
     case 6:  // BLTU
         taken = (rv->X[rs1] < rv->X[rs2]);
+        instruction_count(BLTU);
         break;
     case 7:  // BGEU
         taken = (rv->X[rs1] >= rv->X[rs2]);
+        instruction_count(BGEU);
         break;
     default:
         rv_except_illegal_inst(rv);
@@ -442,6 +490,7 @@ static bool op_branch(struct riscv_t *rv, uint32_t inst)
     // perform branch action
     if (taken) {
         rv->PC += imm;
+        jump_count(imm);
         if (rv->PC & 0x3)
             rv_except_inst_misaligned(rv, pc);
     } else {
@@ -463,8 +512,10 @@ static bool op_jalr(struct riscv_t *rv, uint32_t inst)
 
     // compute return address
     const uint32_t ra = rv->PC + 4;
+    branch_count();
 
     // jump
+    jalr_jump_count(rv->PC,(rv->X[rs1] + imm) & ~1u);
     rv->PC = (rv->X[rs1] + imm) & ~1u;
 
     // link
@@ -477,6 +528,8 @@ static bool op_jalr(struct riscv_t *rv, uint32_t inst)
         return false;
     }
     // can branch
+    
+    instruction_count(JALR);
     return false;
 }
 
@@ -490,6 +543,7 @@ static bool op_jal(struct riscv_t *rv, uint32_t inst)
     // compute return address
     const uint32_t ra = rv->PC + 4;
     rv->PC += rel;
+    jump_count(rel);
 
     // link
     if (rd != rv_reg_zero)
@@ -501,6 +555,7 @@ static bool op_jal(struct riscv_t *rv, uint32_t inst)
         return false;
     }
     // can branch
+    instruction_count(JAL);
     return false;
 }
 
@@ -814,6 +869,7 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
         /* standard uncompressed instruction */         \
         if ((inst & 3) == 3) {                          \
             index = (inst & INST_6_2) >> 2;             \
+            cycle_count();                              \
             goto *jump_table[index];                    \
         } else {                                        \
             /* TODO: compressed instruction*/           \
@@ -880,6 +936,7 @@ exit:
 
             // increment the cycles csr
             rv->csr_cycle++;
+            cycle_count();
         } else {
             // TODO: compressed instruction
             assert(!"Unreachable");

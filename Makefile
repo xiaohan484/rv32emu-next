@@ -55,7 +55,8 @@ OBJS = \
 	elf.o \
 	main.o \
 	syscall.o \
-	syscall_sdl.o
+	syscall_sdl.o \
+	statistics.o
 
 deps := $(OBJS:%.o=%.o.d)
 

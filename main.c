@@ -4,9 +4,13 @@
 
 #include "elf.h"
 #include "state.h"
+#include "statistics.h"
 
 /* enable program trace mode */
 static bool opt_trace = false;
+/* statistics message */
+
+static bool opt_stats=false;
 
 /* RISCV compliance test mode */
 static bool opt_compliance = false;
@@ -106,7 +110,8 @@ static void print_usage(const char *filename)
             "Usage: %s [options] [filename]\n"
             "Options:\n"
             "  --trace : print executable trace\n"
-            "  --compliance [signature filename] : dump signature to the given file for compliance test\n",
+            "  --compliance [signature filename] : dump signature to the given file for compliance test\n"
+            "  --stats : statistics message of rv32emu: CPU cycles,jump counter, top 10 most frequency instruction\n",
             filename);
 }
 
@@ -131,6 +136,10 @@ static bool parse_args(int argc, char **args)
                     return false;
                 }
                 signature_out_file = args[++i];
+                continue;
+            }
+            if(!strcmp(arg,"--stats")){
+                opt_stats=true;
                 continue;
             }
             /* otherwise, error */
@@ -226,6 +235,8 @@ int main(int argc, char **args)
         dump_test_signature(rv, elf);
     }
 
+    if(opt_stats)
+        stats_information();
     /* finalize the RISC-V runtime */
     elf_delete(elf);
     rv_delete(rv);
