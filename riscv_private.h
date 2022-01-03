@@ -104,8 +104,6 @@ enum {
 struct riscv_t {
     bool halt;
 
-    // instruction buffer
-    uint32_t inst_buffer;
 
     // io interface
     struct riscv_io_t io;
@@ -129,6 +127,8 @@ struct riscv_t {
     uint32_t csr_mepc;
     uint32_t csr_mip;
     uint32_t csr_mbadaddr;
+    // instruction buffer
+    uint32_t inst_buffer;
      enum {
             INST_UNKNOWN = 0,
             INST_16 = 0x02,
