@@ -4,7 +4,6 @@
 enum instruction
 {
     //op load
-    //E
     LB=0,
     LH,
     LW,

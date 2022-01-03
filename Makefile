@@ -10,6 +10,7 @@ CFLAGS += -D ENABLE_RV32M
 CFLAGS += -D ENABLE_Zicsr
 CFLAGS += -D ENABLE_Zifencei
 CFLAGS += -D ENABLE_RV32A
+CFLAGS += -D ENABLE_RV32C
 CFLAGS += -D DEFAULT_STACK_ADDR=0xFFFFF000
 
 # Experimental SDL oriented system calls
@@ -18,7 +19,7 @@ CFLAGS += `sdl2-config --cflags`
 LDFLAGS += `sdl2-config --libs`
 
 # Whether to enable computed goto in riscv.c
-ENABLE_COMPUTED_GOTO ?= 1
+ENABLE_COMPUTED_GOTO ?= 0
 ifeq ("$(ENABLE_COMPUTED_GOTO)", "1")
 ifneq ($(filter $(CC), gcc clang),)
 riscv.o: CFLAGS += -D ENABLE_COMPUTED_GOTO
@@ -56,7 +57,8 @@ OBJS = \
 	main.o \
 	syscall.o \
 	syscall_sdl.o \
-	statistics.o
+	statistics.o\
+	compressed.o
 
 deps := $(OBJS:%.o=%.o.d)
 

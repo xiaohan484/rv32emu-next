@@ -75,7 +75,7 @@ static void on_on_ecall(struct riscv_t *rv)
 
 static void on_on_ebreak(struct riscv_t *rv)
 {
-    rv_halt(rv);
+    //rv_halt(rv);
 }
 
 /* run: printing out an instruction trace */

@@ -1,0 +1,190 @@
+80000000  rvtest_entry_point
+Instruction:0xfeedc0b7	0xfeedc0b7
+80000004  
+Instruction:0xead08093	0xead08093
+80000008  
+Instruction:0xff76e137	0xff76e137
+8000000c  
+Instruction:0xf5610113	0xf5610113
+80000010  
+Instruction:0x7fbb71b7	0x7fbb71b7
+80000014  
+Instruction:0xfab18193	0xfab18193
+80000018  
+Instruction:0xbfddb237	0xbfddb237
+8000001c  
+Instruction:0x7d520213	0x7d520213
+80000020  
+Instruction:0x297	0x297
+80000024  
+Instruction:0xd828293	0xd828293
+80000028  
+Instruction:0x3317	0x3317
+8000002c  
+Instruction:0xfd830313	0xfd830313
+80000030  
+Instruction:0xb7fbb3b7	0xb7fbb3b7
+80000034  
+Instruction:0x6fa38393	0x6fa38393
+80000038  
+Instruction:0x5bfde437	0x5bfde437
+8000003c  
+Instruction:0xb7d40413	0xb7d40413
+80000040  
+Instruction:0xadfef4b7	0xadfef4b7
+80000044  
+Instruction:0xdbe48493	0xdbe48493
+80000048  
+Instruction:0x56ff7537	0x56ff7537
+8000004c  
+Instruction:0x6df50513	0x6df50513
+80000050  
+Instruction:0xab7fc5b7	0xab7fc5b7
+80000054  
+Instruction:0xb6f58593	0xb6f58593
+80000058  
+Instruction:0xd5bfe637	0xd5bfe637
+8000005c  
+Instruction:0xdb760613	0xdb760613
+80000060  
+Instruction:0xeadff6b7	0xeadff6b7
+80000064  
+Instruction:0xedb68693	0xedb68693
+80000068  
+Instruction:0xf56ff737	0xf56ff737
+8000006c  
+Instruction:0x76d70713	0x76d70713
+80000070  
+Instruction:0xfab807b7	0xfab807b7
+80000074  
+Instruction:0xbb678793	0xbb678793
+80000078  
+Instruction:0x7d5c0837	0x7d5c0837
+8000007c  
+Instruction:0xddb80813	0xddb80813
+80000080  
+Instruction:0xbeae08b7	0xbeae08b7
+80000084  
+Instruction:0xeed88893	0xeed88893
+80000088  
+Instruction:0xdf570937	0xdf570937
+8000008c  
+Instruction:0xf7690913	0xf7690913
+80000090  
+Instruction:0x6fab89b7	0x6fab89b7
+80000094  
+Instruction:0xfbb98993	0xfbb98993
+80000098  
+Instruction:0xb7d5ca37	0xb7d5ca37
+8000009c  
+Instruction:0xfdda0a13	0xfdda0a13
+800000a0  
+Instruction:0xdbeaeab7	0xdbeaeab7
+800000a4  
+Instruction:0xfeea8a93	0xfeea8a93
+800000a8  
+Instruction:0x6df57b37	0x6df57b37
+800000ac  
+Instruction:0xff7b0b13	0xff7b0b13
+800000b0  
+Instruction:0xb6fabbb7	0xb6fabbb7
+800000b4  
+Instruction:0x7fbb8b93	0x7fbb8b93
+800000b8  
+Instruction:0xdb7d6c37	0xdb7d6c37
+800000bc  
+Instruction:0xbfdc0c13	0xbfdc0c13
+800000c0  
+Instruction:0xedbebcb7	0xedbebcb7
+800000c4  
+Instruction:0xdfec8c93	0xdfec8c93
+800000c8  
+Instruction:0x76df5d37	0x76df5d37
+800000cc  
+Instruction:0x6ffd0d13	0x6ffd0d13
+800000d0  
+Instruction:0xbb6fbdb7	0xbb6fbdb7
+800000d4  
+Instruction:0xb7fd8d93	0xb7fd8d93
+800000d8  
+Instruction:0xddb7de37	0xddb7de37
+800000dc  
+Instruction:0x5bfe0e13	0x5bfe0e13
+800000e0  
+Instruction:0xeedbfeb7	0xeedbfeb7
+800000e4  
+Instruction:0xadfe8e93	0xadfe8e93
+800000e8  
+Instruction:0xf76dff37	0xf76dff37
+800000ec  
+Instruction:0x56ff0f13	0x56ff0f13
+800000f0  
+Instruction:0xfbb70fb7	0xfbb70fb7
+800000f4  
+Instruction:0xab7f8f93	0xab7f8f93
+800000f8  rvtest_code_begin
+Instruction:0x3417	0x3417
+800000fc  
+Instruction:0xf1840413	0xf1840413
+80000100  inst_0
+Instruction:0x80000e37	0x80000e37
+80000104  
+Instruction:0xb93	0xb93
+80000108  
+Instruction:0x20239bf2	0x9bf2
+adding:0x80000000
+rd:23
+8000010a  
+Instruction:0x1742023	0x1742023
+8000010e  inst_1
+Instruction:0x101b7	0x101b7
+80000112  
+Instruction:0x101b7	0x101b7
+80000116  
+Instruction:0x2223918e	0x918e
+adding:0x20000
+rd:3
+80000118  
+Instruction:0x342223	0x342223
+8000011c  inst_2
+Instruction:0x80000f37	0x80000f37
+80000120  
+Instruction:0xffff0f13	0xffff0f13
+80000124  
+Instruction:0x793	0x793
+80000128  
+Instruction:0xc41c97fa	0x97fa
+adding:0x7fffffff
+rd:15
+8000012a  
+Instruction:0x293c41c	0xc41c
+8000012c  inst_3
+Instruction:0x100293	0x100293
+80000130  
+Instruction:0xf7f00b13	0xf7f00b13
+80000134  
+Instruction:0x26239b16	0x9b16
+adding:0xffffff80
+rd:22
+80000136  
+Instruction:0x1642623	0x1642623
+8000013a  inst_4
+Instruction:0x400006b7	0x400006b7
+8000013e  
+Instruction:0xfff68693	0xfff68693
+80000142  
+Instruction:0x800003b7	0x800003b7
+80000146  
+Instruction:0x282393b6	0x93b6
+adding:0xbfffffff
+rd:7
+80000148  
+Instruction:0x742823	0x742823
+8000014c  inst_5
+Instruction:0xffff5137	0xffff5137
+80000150  
+Instruction:0xafd10113	0xafd10113
+80000154  
+Instruction:0x13	0x13
+80000158  
+Instruction:0x2a23900a	0x900a
