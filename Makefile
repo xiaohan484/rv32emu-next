@@ -57,8 +57,7 @@ OBJS = \
 	main.o \
 	syscall.o \
 	syscall_sdl.o \
-	statistics.o\
-	compressed.o
+	statistics.o
 
 deps := $(OBJS:%.o=%.o.d)
 
