@@ -10,7 +10,6 @@
 
 static void rv_except_inst_misaligned(struct riscv_t *rv, uint32_t old_pc)
 {
-    printf("Instruction Misaligned");
     const uint32_t base = rv->csr_mtvec & ~0x3;
     const uint32_t mode = rv->csr_mtvec & 0x3;
 
@@ -27,7 +26,29 @@ static void rv_except_inst_misaligned(struct riscv_t *rv, uint32_t old_pc)
         rv->PC = base + 4 * code;
         break;
     }
+    rv->csr_mcause = code;
+}
 
+static void rv_breakpoint(struct riscv_t *rv, uint32_t old_pc)
+{
+    const uint32_t base = rv->csr_mtvec & ~0x3;
+    const uint32_t mode = rv->csr_mtvec & 0x3;
+
+    const uint32_t code = 3;  // instruction address misaligned
+
+    rv->csr_mepc = old_pc;
+    rv->csr_mtval = rv->PC;
+
+    switch (mode) {
+    case 0:  // DIRECT
+        rv->PC = base;
+        break;
+    case 1:  // VECTORED
+        rv->PC = base + 4 * code;
+        break;
+    }
+
+    rv->privilege=2;
     rv->csr_mcause = code;
 }
 
@@ -75,11 +96,27 @@ static void rv_except_store_misaligned(struct riscv_t *rv, uint32_t addr)
     rv->csr_mcause = code;
 }
 
-static void rv_except_illegal_inst(struct riscv_t *rv UNUSED)
+static void rv_except_illegal_inst(struct riscv_t *rv,uint32_t inst)
 {
     /* TODO: dump more information */
-    printf("Illegal Instruction");
-    assert(!"illegal instruction");
+    const uint32_t base = rv->csr_mtvec & ~0x3;
+    const uint32_t mode = rv->csr_mtvec & 0x3;
+
+    const uint32_t code = 2;  // store address misaligned
+
+    rv->csr_mepc = rv->PC;
+    rv->csr_mtval = inst;
+
+    switch (mode) {
+    case 0:  // DIRECT
+        rv->PC = base;
+        break;
+    case 1:  // VECTORED
+        rv->PC = base + 4 * code;
+        break;
+    }
+
+    rv->csr_mcause = code;
 }
 
 static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
@@ -128,7 +165,7 @@ static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
         instruction_count(LHU);
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv,inst);
         return false;
     }
     // step over instruction
@@ -200,7 +237,7 @@ static bool op_op_imm(struct riscv_t *rv, uint32_t inst)
         instruction_count(ANDI);
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv,inst);
         return false;
     }
 
@@ -267,7 +304,7 @@ static bool op_store(struct riscv_t *rv, uint32_t inst)
         instruction_count(SW);
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv,inst);
         return false;
     }
 
@@ -323,7 +360,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             instruction_count(AND);
             break;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv,inst);
             return false;
         }
         break;
@@ -396,7 +433,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             instruction_count(REMU);
         } break;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv,inst);
             return false;
         }
         break;
@@ -412,12 +449,12 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             instruction_count(SRA);
             break;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv,inst);
             return false;
         }
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv,inst);
         return false;
     }
     // step over instruction
@@ -487,7 +524,7 @@ static bool op_branch(struct riscv_t *rv, uint32_t inst)
         instruction_count(BGEU);
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv,inst);
         return false;
     }
     // perform branch action
@@ -663,20 +700,22 @@ static bool op_system(struct riscv_t *rv, uint32_t inst)
             rv->io.on_ecall(rv);
             break;
         case 1:  // EBREAK
-            rv->io.on_ebreak(rv);
+
+            //rv->io.on_ebreak(rv);
+            rv_breakpoint(rv,rv->PC);
             break;
         case 0x002:  // URET
         case 0x102:  // SRET
         case 0x202:  // HRET
         case 0x105:  // WFI
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv,inst);
             return false;
         case 0x302:  // MRET
             rv->PC = rv->csr_mepc;
             // this is a branch
             return false;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv,inst);
             return false;
         }
         break;
@@ -699,23 +738,23 @@ static bool op_system(struct riscv_t *rv, uint32_t inst)
         break;
     }
     case 5: {  // CSRRWI
-        uint32_t tmp = csr_csrrc(rv, csr, rv->X[rs1]);
+        uint32_t tmp = csr_csrrw(rv, csr, rv->X[rs1]);
         rv->X[rd] = rd ? tmp : rv->X[rd];
         break;
     }
     case 6: {  // CSRRSI
-        uint32_t tmp = csr_csrrs(rv, csr, rs1);
+        uint32_t tmp = csr_csrrs(rv, csr, (rs1 == rv_reg_zero) ? 0u : rv->X[rs1]);
         rv->X[rd] = rd ? tmp : rv->X[rd];
         break;
     }
     case 7: {  // CSRRCI
-        uint32_t tmp = csr_csrrc(rv, csr, rs1);
+        uint32_t tmp = csr_csrrc(rv, csr, (rs1 == rv_reg_zero) ? ~0u : rv->X[rs1]);
         rv->X[rd] = rd ? tmp : rv->X[rd];
         break;
     }
 #endif  // ENABLE_Zicsr
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv,inst);
         return false;
     }
 
@@ -811,7 +850,7 @@ static bool op_amo(struct riscv_t *rv, uint32_t inst)
         break;
     }
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv,inst);
         return false;
     }
 
@@ -839,7 +878,7 @@ static bool op_amo(struct riscv_t *rv, uint32_t inst)
 // handler for all unimplemented opcodes
 static bool op_unimp(struct riscv_t *rv, uint32_t inst UNUSED)
 {
-    rv_except_illegal_inst(rv);
+    rv_except_illegal_inst(rv,inst);
     return false;
 }
 #ifdef ENABLE_RV32C
@@ -935,8 +974,16 @@ static bool op_csrli(struct riscv_t *rv, uint16_t inst)
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
     //shamt[t]==1 are reserved
-    if ((shamt & 0x10)!=0) 
-        rv->X[rs1] >>= shamt;
+    if(shamt & 0x20)
+        return true;
+    //HINTS
+    if(rs1==0)
+        return true;
+    //shamt ==0 is HINT
+    if(shamt==0)
+        return true;
+
+    rv->X[rs1] >>= shamt;
 
 
     return true;
@@ -952,18 +999,20 @@ static bool op_csrai(struct riscv_t *rv, uint16_t inst)
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
     //assert(!"shamt[5]=1 Reserved");
-    if (shamt & 0x10) 
+    if (shamt & 0x20) 
         return true;
     //shame ==0 is HINT
     if(shamt==0)
         return true;
+    //HINT
+    if(rs1==rv_reg_zero)
+        return true;
 
-    const uint32_t mask = 0x80000000 | rv->X[rs1];
+    const uint32_t mask = 0x80000000 & rv->X[rs1];
     rv->X[rs1] >>= shamt;
 
-    for (unsigned int i = 0; i < shamt; ++i) {
+    for (unsigned int i = 0; i < shamt; ++i) 
         rv->X[rs1] |= mask >> i;
-    }
 
     return true;
 }
@@ -1095,12 +1144,7 @@ static bool op_clwsp(struct riscv_t *rv, uint16_t inst)
         return false;
     }
 
-    printf("sp:%p\t",(void*)rv->X[rv_reg_sp]);
-    printf("rd:%p\n",(void*)rd);
-    printf("imm:%u\n",imm);
     rv->X[rd] = rv->io.mem_read_w(rv, addr);
-    printf("addr:%p\n",addr);
-    printf("value:%p\n",(void*)rv->X[rd]);
     rv->PC += rv->inst_len;
     return true;
 }
@@ -1219,37 +1263,31 @@ static bool op_ccr(struct riscv_t *rv, uint16_t inst)
         }
         break;
     case 1:
-        if (rs1) {
-            if (rs2) {
-                // C.ADD
-                rv->X[rd] = rv->X[rs1] + rv->X[rs2];
-                rv->PC += rv->inst_len;
-
-                if (rd == rv_reg_zero)
-                    rv->X[rv_reg_zero] = 0;
-            } else {
-                // C.JALR
-                printf("bra:%p\t",(void*)rv->X[rv_reg_ra]);
-
-                //avoid jalr ra
-                const int32_t rs_value=rv->X[rs1];
-                rv->X[rv_reg_ra] = rv->PC + rv->inst_len;
-                rv->PC = rs_value;
-                
-                printf("jump:%p\t",(void*)rv->PC);
-                printf("ra:%p\t",(void*)rv->X[rv_reg_ra]);
-                //if (rv->PC & 0x1) {
-                //    rv_except_inst_misaligned(rv, rv->PC);
-                //    return false;
-                //}
-                // can branch
+        if(rs1==0 && rs2==0)//C.EBREAK
+            rv_breakpoint(rv,rv->PC);
+        else if(rs1 && rs2)//C.ADD
+        {
+            rv->X[rd] = rv->X[rs1] + rv->X[rs2];
+            rv->PC += rv->inst_len;
+            if (rd == rv_reg_zero)
+                rv->X[rv_reg_zero] = 0;
+        }
+        else if(rs1 && rs2==0) //rs1!=zero rs2== zero
+        {
+            //C.JALR
+            //avoid jalr ra
+            const int32_t rs_value=rv->X[rs1];
+            rv->X[rv_reg_ra] = rv->PC + rv->inst_len;
+            rv->PC = rs_value;
+            if (rv->PC & 0x1) {
+                rv_except_inst_misaligned(rv, rv->PC);
                 return false;
             }
-        } else {
-            // C.EBREAK
-            //rv->io.on_ebreak(rv);
-            rv->PC += rv->inst_len;
+            // can branch
+            return false;
         }
+        else//r2!=zero rd==zero
+            rv->PC+=rv->inst_len;//HINT
         break;
     default:
         assert(!"Should be unreachbale.");
@@ -1316,8 +1354,8 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
 {
     assert(rv);
     const uint64_t cycles_target = rv->csr_cycle + cycles;
-    uint32_t inst=0, index;
-    uint32_t buffer;
+    uint32_t inst=0;
+    uint32_t buffer=0;
 // clang-format off
 #define OP_UNIMP op_unimp
 #ifdef ENABLE_COMPUTED_GOTO
@@ -1343,7 +1381,7 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
     OP(cfld),       OP(cjal),       OP(cfldsp), OP(unimp), // 001
     OP(clw),        OP(cli),        OP(clwsp),  OP(unimp), // 010
     OP(cflw),       OP(clui),       OP(cflwsp), OP(unimp), // 011
-   OP(unimp),         OP(cmisc_alu),  OP(ccr),    OP(unimp), // 100
+    OP(unimp),         OP(cmisc_alu),  OP(ccr),    OP(unimp), // 100
     OP(cfsd),       OP(cj),         OP(cfsdsp), OP(unimp), // 101
     OP(csw),        OP(cbeqz),      OP(cswsp),  OP(unimp), // 110
     OP(cfsw),      OP(cbnez),      OP(cfswsp), OP(unimp), // 111
@@ -1356,19 +1394,16 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
         if (rv->csr_cycle >= cycles_target || rv->halt) \
             goto exit;                                  \
         /* fetch the next instruction */                \
-        if(inst==0)                                     \
-            inst = rv->io.mem_ifetch(rv, rv->PC);       \
+        inst = rv->io.mem_ifetch(rv, rv->PC);       \
         /* standard uncompressed instruction */         \
         if ((inst & 3) == 3) {                          \
-            if(inst!=0)                                 \
-                inst|=(rv->io.mem_ifetch(rv,rv->PC+2)<<16);\
-            index = (inst & INST_6_2) >> 2;             \
+            uint32_t index = (inst & INST_6_2) >> 2;    \
             rv->inst_len=INST_32;                       \
             cycle_count();                              \
             goto *jump_table[index];                    \
         } else {                                        \
-            buffer=inst;                                \
-            inst = buffer &0x0000FFFF;                  \
+         /* Compressed Extension Instruction */         \
+            inst &= 0x0000FFFF;                         \
             int16_t c_index = (inst & FC_FUNC3) >> 11 | (inst & FC_OPCODE);\
             rv->inst_len = INST_16;                     \
             cycle_count();                              \
@@ -1381,13 +1416,6 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
         /* dispatch this opcode */    \
         if (!op_##instr(rv, inst))    \
             goto exit;                \
-        if((inst & 3) ==3)            \
-            inst=0;                   \
-        else                          \
-        {                             \
-            inst=buffer;              \
-            inst>>=16;                \
-        }                             \
         /* increment the cycles csr*/ \
         rv->csr_cycle++;              \
     }
@@ -1447,22 +1475,14 @@ exit:
     inst=0;
   while (rv->csr_cycle < cycles_target && !rv->halt) {
         // fetch the next instruction
-        if(inst==0)
-        {
-            inst = rv->io.mem_ifetch(rv, rv->PC);
-        }
+        inst = rv->io.mem_ifetch(rv, rv->PC);
 
         // Illegal instruction if inst[15:0] == 0
         //assert(inst & 0xFFFF && "inst[15:0] must not be all 0.\n");
 
         // standard uncompressed instruction
         if ((inst & 3) == 3) {
-            if(inst!=0)
-                inst|=(rv->io.mem_ifetch(rv,rv->PC+2)<<16);
-
             const uint32_t index = (inst & INST_6_2) >> 2;
-
-
             // dispatch this opcode
             const TABLE_TYPE op = jump_table[index];
             assert(op);
@@ -1471,24 +1491,18 @@ exit:
             if (!op(rv, inst))
                 break;
             // increment the cycles csr
-            inst = 0;
             rv->csr_cycle++;
         } else {
-            uint32_t buffer=inst;
 
-            inst = buffer &0x0000FFFF;
-            printf("%p\n",(void*)inst);
+            inst&=0x0000FFFF;
              int16_t c_index =
                 (inst & FC_FUNC3) >> 11 | (inst & FC_OPCODE);
-            c_opcode_t op = jump_tablec[c_index];
+            const TABLE_TYPEC op = jump_tablec[c_index];
 
             assert(op);
             rv->inst_len = INST_16;
             if (!op(rv, inst))
                 break;
-
-            inst=buffer;
-            inst>>=16;
             // increment the cycles csr
             rv->csr_cycle++;
 
@@ -1589,5 +1603,8 @@ void rv_reset(struct riscv_t *rv, riscv_word_t pc)
     // reset the csrs
     rv->csr_cycle = 0;
     rv->csr_mstatus = 0;
+    rv->csr_mip=0;
+    rv->csr_mie=0;
+    rv->privilege=0;//User mode
     rv->halt = false;
 }

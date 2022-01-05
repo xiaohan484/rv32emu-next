@@ -120,6 +120,14 @@ uint8_t memory_read_b(memory_t *m, uint32_t addr)
 
 void memory_write(memory_t *m, uint32_t addr, const uint8_t *src, uint32_t size)
 {
+    uint32_t p = addr + size;
+    uint32_t x = p >> 16;
+    chunk_t *c = m->chunks[x];
+    if (!c) {
+        c = malloc(sizeof(chunk_t));
+        memset(c->data, 0, sizeof(c->data));
+        m->chunks[x] = c;
+    }
     for (uint32_t i = 0; i < size; ++i) {
         uint32_t p = addr + i;
         uint32_t x = p >> 16;
@@ -130,6 +138,14 @@ void memory_write(memory_t *m, uint32_t addr, const uint8_t *src, uint32_t size)
             m->chunks[x] = c;
         }
         c->data[p & 0xffff] = src[i];
+    }
+    p = addr + size;
+    x = p >> 16;
+    c = m->chunks[x];
+    if (!c) {
+        c = malloc(sizeof(chunk_t));
+        memset(c->data, 0, sizeof(c->data));
+        m->chunks[x] = c;
     }
 }
 

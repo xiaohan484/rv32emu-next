@@ -126,7 +126,10 @@ struct riscv_t {
     uint32_t csr_mscratch;
     uint32_t csr_mepc;
     uint32_t csr_mip;
+    uint32_t csr_mie;
     uint32_t csr_mbadaddr;
+
+    uint32_t privilege;//0 = User mode  2 = Machine mode
     // instruction buffer
     uint32_t inst_buffer;
      enum {
