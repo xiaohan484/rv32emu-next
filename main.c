@@ -85,9 +85,9 @@ static void run_and_trace(struct riscv_t *rv, elf_t *elf)
 
     for (; !rv_has_halted(rv);) { /* run until the flag is done */
         /* trace execution */
-        //uint32_t pc = rv_get_pc(rv);
-        //const char *sym = elf_find_symbol(elf, pc);
-        //printf("%08x  %s\n", pc, (sym ? sym : ""));
+        uint32_t pc = rv_get_pc(rv);
+        const char *sym = elf_find_symbol(elf, pc);
+        printf("%08x  %s\n", pc, (sym ? sym : ""));
 
         /* step instructions */
         rv_step(rv, cycles_per_step);

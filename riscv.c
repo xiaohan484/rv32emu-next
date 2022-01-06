@@ -70,7 +70,7 @@ static void rv_except_load_misaligned(struct riscv_t *rv, uint32_t addr)
         rv->PC = base + 4 * code;
         break;
     }
-
+    printf("Load Misalignment:%p\n",(void*)rv->csr_mepc);
     rv->csr_mcause = code;
 }
 
@@ -98,6 +98,7 @@ static void rv_except_store_misaligned(struct riscv_t *rv, uint32_t addr)
 
 static void rv_except_illegal_inst(struct riscv_t *rv,uint32_t inst)
 {
+    printf("illega instruction Misalignment\n");
     /* TODO: dump more information */
     const uint32_t base = rv->csr_mtvec & ~0x3;
     const uint32_t mode = rv->csr_mtvec & 0x3;
@@ -145,6 +146,7 @@ static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
         instruction_count(LH);
         break;
     case 2:  // LW
+        printf("Lw\n");
         if (addr & 3) {
             rv_except_load_misaligned(rv, addr);
             return false;
@@ -296,6 +298,7 @@ static bool op_store(struct riscv_t *rv, uint32_t inst)
         instruction_count(SH);
         break;
     case 2:  // SW
+        printf("store data:%p \t addr:%p \n",(void*)data,(void*)addr);
         if (addr & 3) {
             rv_except_store_misaligned(rv, addr);
             return false;
@@ -651,6 +654,7 @@ static uint32_t csr_csrrw(struct riscv_t *rv, uint32_t csr, uint32_t val)
     const uint32_t out = *c;
     if (csr_is_writable(csr))
         *c = val;
+    printf("write data:%p\n",(void*)*c);
 
     return out;
 }
@@ -881,6 +885,7 @@ static bool op_unimp(struct riscv_t *rv, uint32_t inst UNUSED)
     rv_except_illegal_inst(rv,inst);
     return false;
 }
+
 #ifdef ENABLE_RV32C
 static bool op_caddi(struct riscv_t *rv, uint16_t inst)
 {
@@ -1180,6 +1185,8 @@ static bool op_clw(struct riscv_t *rv, uint16_t inst)
     const uint16_t rs1 = c_dec_rs1c(inst) | 0x08;
     const uint32_t addr = rv->X[rs1] + imm;
 
+    printf("C-Type Lw\t");
+    printf("addr:%p\n",addr);
     if (addr & 3) {
         rv_except_load_misaligned(rv, addr);
         return false;
