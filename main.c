@@ -10,7 +10,7 @@
 static bool opt_trace = false;
 /* statistics message */
 
-static bool opt_stats=false;
+static bool opt_stats = false;
 
 /* RISCV compliance test mode */
 static bool opt_compliance = false;
@@ -73,10 +73,7 @@ static void on_on_ecall(struct riscv_t *rv)
     syscall_handler(rv);
 }
 
-static void on_on_ebreak(struct riscv_t *rv)
-{
-
-}
+static void on_on_ebreak(struct riscv_t *rv) {}
 
 /* run: printing out an instruction trace */
 static void run_and_trace(struct riscv_t *rv, elf_t *elf)
@@ -110,8 +107,10 @@ static void print_usage(const char *filename)
             "Usage: %s [options] [filename]\n"
             "Options:\n"
             "  --trace : print executable trace\n"
-            "  --compliance [signature filename] : dump signature to the given file for compliance test\n"
-            "  --stats : statistics message of rv32emu: CPU cycles,jump counter, top 10 most frequency instruction\n",
+            "  --compliance [signature filename] : dump signature to the given "
+            "file for compliance test\n"
+            "  --stats : statistics message of rv32emu: CPU cycles,jump "
+            "counter, top 10 most frequency instruction\n",
             filename);
 }
 
@@ -132,14 +131,15 @@ static bool parse_args(int argc, char **args)
                 opt_compliance = true;
                 if (i + 1 >= argc) {
                     fprintf(stderr,
-                            "Filename for signature output required in compliance mode.\n");
+                            "Filename for signature output required in "
+                            "compliance mode.\n");
                     return false;
                 }
                 signature_out_file = args[++i];
                 continue;
             }
-            if(!strcmp(arg,"--stats")){
-                opt_stats=true;
+            if (!strcmp(arg, "--stats")) {
+                opt_stats = true;
                 continue;
             }
             /* otherwise, error */
@@ -225,7 +225,7 @@ int main(int argc, char **args)
 
     /* run based on the specified mode */
     if (opt_trace) {
-      run_and_trace(rv, elf);
+        run_and_trace(rv, elf);
     } else {
         run(rv);
     }
@@ -235,7 +235,7 @@ int main(int argc, char **args)
         dump_test_signature(rv, elf);
     }
 
-    if(opt_stats)
+    if (opt_stats)
         stats_information();
     /* finalize the RISC-V runtime */
     elf_delete(elf);

@@ -1,16 +1,15 @@
 #pragma once
 #include "stdlib.h"
 
-enum instruction
-{
-    //op load
-    LB=0,
+enum instruction {
+    // op load
+    LB = 0,
     LH,
     LW,
     LBU,
-    LHU=4,
-    //op immdediate 
-    ADDI=5,
+    LHU = 4,
+    // op immdediate
+    ADDI = 5,
     SLLI,
     SLTI,
     SLTIU,
@@ -18,17 +17,17 @@ enum instruction
     SRAI,
     SRLI,
     ORI,
-    ANDI=13,
-    //auipc
+    ANDI = 13,
+    // auipc
     AUIPC,
-    //store
+    // store
     SB,
     SH,
     SW,
-    //op 
+    // op
     ADD,
     SLL,
-    SLT=20,
+    SLT = 20,
     SLTU,
     XOR,
     SRL,
@@ -38,27 +37,27 @@ enum instruction
     MULH,
     MULHSU,
     MULHU,
-    DIV=30,
+    DIV = 30,
     DIVU,
     REM,
     REMU,
     SUB,
     SRA,
-    //op lui
+    // op lui
     LUI,
-    //op Branch
+    // op Branch
     BEQ,
     BNE,
     BLT,
     BGE,
     BLTU,
     BGEU,
-    //op Jal
+    // op Jal
     JALR,
-    JAL=45,
-    //system
+    JAL = 45,
+    // system
     ECALL,
-    EBREAK=47,
+    EBREAK = 47,
 };
 
 void instruction_count(int instruction);
@@ -71,9 +70,4 @@ void jump_backward_count();
 void cycle_count();
 void branch_count();
 void jump_count(const int32_t imm);
-void jalr_jump_count(const int32_t before,const int32_t after);
-
-
-
-
-
+void jalr_jump_count(const int32_t before, const int32_t after);
