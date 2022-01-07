@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stdio.h>
 #include "riscv.h"
 #include "riscv_private.h"
 #include "statistics.h"
