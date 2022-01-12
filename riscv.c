@@ -197,8 +197,8 @@ static bool op_op_imm(struct riscv_t *rv, uint32_t inst)
 
 // add upper immediate to pc
 static bool op_auipc(struct riscv_t *rv, uint32_t inst)
-    {
-        // u-type decode
+{
+    // u-type decode
     const uint32_t rd = dec_rd(inst);
     const uint32_t val = dec_utype_imm(inst) + rv->PC;
     rv->X[rd] = val;
@@ -879,8 +879,6 @@ static bool c_op_lui(struct riscv_t *rv, uint16_t inst)
 // static bool c_op_XX(struct riscv_t *rv, uint16_t inst)
 static bool c_op_srli(struct riscv_t *rv, uint16_t inst)
 {
-    debug_print("Entered c.srli");
-
     uint32_t temp = 0;
     temp |= (inst & 0x1000) >> 7;
     temp |= (inst & 0x007C) >> 2;
@@ -888,7 +886,7 @@ static bool c_op_srli(struct riscv_t *rv, uint16_t inst)
     const uint32_t shamt = temp;
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
-    if(shamt & 0x10){
+    if (shamt & 0x10) {
         assert(!"shamt[5]=1 Reserved");
         return false;
     }
@@ -900,8 +898,6 @@ static bool c_op_srli(struct riscv_t *rv, uint16_t inst)
 
 static bool c_op_srai(struct riscv_t *rv, uint16_t inst)
 {
-    debug_print("Entered c.srai");
-
     uint32_t temp = 0;
     temp |= (inst & 0x1000) >> 7;
     temp |= (inst & 0x007C) >> 2;
@@ -909,7 +905,7 @@ static bool c_op_srai(struct riscv_t *rv, uint16_t inst)
     const uint32_t shamt = temp;
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
-    if(shamt & 0x10){
+    if (shamt & 0x10) {
         assert(!"shamt[5]=1 Reserved");
         return false;
     }
@@ -917,7 +913,7 @@ static bool c_op_srai(struct riscv_t *rv, uint16_t inst)
     const uint32_t mask = 0x80000000 | rv->X[rs1];
     rv->X[rs1] >>= shamt;
 
-    for(unsigned int i = 0; i < shamt; ++i){
+    for (unsigned int i = 0; i < shamt; ++i) {
         rv->X[rs1] |= mask >> i;
     }
 
@@ -926,10 +922,10 @@ static bool c_op_srai(struct riscv_t *rv, uint16_t inst)
 
 static bool c_op_andi(struct riscv_t *rv, uint16_t inst)
 {
-    const uint16_t mask = (0x1000 & inst) << 3;    
+    const uint16_t mask = (0x1000 & inst) << 3;
 
     uint16_t temp = 0;
-    for(int i = 0; i < 10; ++i){
+    for (int i = 0; i < 10; ++i) {
         temp |= (mask >> i);
     }
     temp |= (inst & 0x007C) >> 2;
@@ -947,17 +943,17 @@ static bool c_op_misc_alu(struct riscv_t *rv, uint16_t inst)
     bool exec_result;
 
     // Find actual instruction
-    switch((inst & 0x0C00) >> 10){
-    case 0: // C.SRLI
+    switch ((inst & 0x0C00) >> 10) {
+    case 0:  // C.SRLI
         exec_result = c_op_srli(rv, inst);
         break;
-    case 1: // C.SRAI
+    case 1:  // C.SRAI
         exec_result = c_op_srai(rv, inst);
         break;
-    case 2: // C.ANDI
+    case 2:  // C.ANDI
         exec_result = c_op_andi(rv, inst);
         break;
-    case 3: // Arithmistic
+    case 3:  // Arithmistic
         uint32_t temp = 0;
         temp |= (inst & 0x1000) >> 10;
         temp |= (inst & 0x0060) >> 5;
@@ -967,21 +963,17 @@ static bool c_op_misc_alu(struct riscv_t *rv, uint16_t inst)
         const uint32_t rs2 = c_dec_rs2c(inst) | 0x08;
         const uint32_t rd = rs1;
 
-        switch(funct){
-        case 0: // SUB
-            debug_print("Entered c.sub");
+        switch (funct) {
+        case 0:  // SUB
             rv->X[rd] = rv->X[rs1] - rv->X[rs2];
             break;
-        case 1: // XOR
-            debug_print("Entered c.xor");
+        case 1:  // XOR
             rv->X[rd] = rv->X[rs1] ^ rv->X[rs2];
             break;
-        case 2: // OR
-            debug_print("Entered c.or");
+        case 2:  // OR
             rv->X[rd] = rv->X[rs1] | rv->X[rs2];
             break;
-        case 3: // AND
-            debug_print("Entered c.and");
+        case 3:  // AND
             rv->X[rd] = rv->X[rs1] & rv->X[rs2];
             break;
         case 4:
@@ -1004,7 +996,7 @@ static bool c_op_misc_alu(struct riscv_t *rv, uint16_t inst)
         break;
     }
 
-    if(!exec_result){
+    if (!exec_result) {
         return false;
     }
 
@@ -1021,14 +1013,14 @@ static bool c_op_slli(struct riscv_t *rv, uint16_t inst)
     const uint32_t shamt = temp;
     const uint32_t rd = c_dec_rd(inst);
 
-    if(rd){
+    if (rd) {
         rv->X[rd] <<= shamt;
     }
 
     rv->PC += rv->inst_len;
     return true;
 }
-	
+
 // CJ-type
 static bool c_op_j(struct riscv_t *rv, uint16_t inst)
 {
@@ -1053,15 +1045,12 @@ static bool c_op_jal(struct riscv_t *rv, uint16_t inst)
 // CB-type
 static bool c_op_beqz(struct riscv_t *rv, uint16_t inst)
 {
-    debug_print("Entered c.beqz");
-
     const uint32_t imm = sign_extend_h(c_dec_cbtype_imm(inst));
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
-    if(!rv->X[rs1]){
+    if (!rv->X[rs1]) {
         rv->PC += imm;
-    }
-    else{
+    } else {
         rv->PC += rv->inst_len;
     }
 
@@ -1070,15 +1059,12 @@ static bool c_op_beqz(struct riscv_t *rv, uint16_t inst)
 
 static bool c_op_bnez(struct riscv_t *rv, uint16_t inst)
 {
-    debug_print("Entered c.bnez");
-
     const uint32_t imm = sign_extend_h(c_dec_cbtype_imm(inst));
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
-    if(rv->X[rs1]){
+    if (rv->X[rs1]) {
         rv->PC += imm;
-    }
-    else{
+    } else {
         rv->PC += rv->inst_len;
     }
 
@@ -1119,7 +1105,7 @@ static bool c_op_slli(struct riscv_t *rv, uint16_t inst)
     const uint32_t shamt = temp;
     const uint32_t rd = c_dec_rd(inst);
 
-    if(rd){
+    if (rd) {
         rv->X[rd] <<= shamt;
     }
 
@@ -1138,7 +1124,7 @@ static bool c_op_lwsp(struct riscv_t *rv, uint16_t inst)
     const uint16_t rd = c_dec_rd(inst);
     const uint16_t addr = rv->X[2] + imm;
 
-    if(addr & 3){
+    if (addr & 3) {
         rv_except_load_misaligned(rv, addr);
         return false;
     }
@@ -1155,28 +1141,22 @@ static bool c_op_cr(struct riscv_t *rv, uint16_t inst)
     const uint32_t rd = rs1;
 
     switch ((inst & 0x1000) >> 12) {
-    case 0:  
-        if(rs2){
-            debug_print("Entered c.mv");
+    case 0:
+        if (rs2) {
             rv->X[rd] = rv->X[rs2];
             rv->PC += rv->inst_len;
-        }
-        else{
-            debug_print("Entered c.jr");
+        } else {
             rv->PC = rv->X[rs1];
 
             return false;
         }
         break;
     case 1:
-        if(rs1){
-            if(rs2){
-                debug_print("Entered c.add");
+        if (rs1) {
+            if (rs2) {
                 rv->X[rd] = rv->X[rs1] + rv->X[rs2];
                 rv->PC += rv->inst_len;
-            }
-            else{
-                debug_print("Entered c.jalr");
+            } else {
                 rv->X[1] = rv->PC + 2;
                 rv->PC = rv->X[rs1];
 
@@ -1187,9 +1167,7 @@ static bool c_op_cr(struct riscv_t *rv, uint16_t inst)
 
                 return false;
             }
-        }
-        else{
-            debug_print("Entered c.ebreak");
+        } else {
             rv->io.on_ebreak(rv);
         }
         break;
@@ -1204,8 +1182,6 @@ static bool c_op_cr(struct riscv_t *rv, uint16_t inst)
 // CSS-type
 static bool c_op_swsp(struct riscv_t *rv, uint16_t inst)
 {
-    debug_print("Entered c.swsp");
-
     const uint16_t imm = (inst & 0x1e00) >> 7 | (inst & 0x180) >> 1;
     const uint16_t rs2 = c_dec_rs2(inst);
     const uint32_t addr = rv->X[2] + imm;
@@ -1223,7 +1199,7 @@ static bool c_op_swsp(struct riscv_t *rv, uint16_t inst)
 
 // CL-type
 static bool c_op_lw(struct riscv_t *rv, uint16_t inst)
-{   
+{
     uint16_t temp = 0;
     temp |= (inst & 0b0000000001000000) >> 4;
     temp |= (inst & FC_IMM_12_10) >> 7;
@@ -1234,7 +1210,7 @@ static bool c_op_lw(struct riscv_t *rv, uint16_t inst)
     const uint16_t rs1 = c_dec_rs1c(inst) | 0x08;
     const uint32_t addr = rv->X[rs1] + imm;
 
-    if(addr & 3){
+    if (addr & 3) {
         rv_except_load_misaligned(rv, addr);
         return false;
     }
@@ -1247,7 +1223,6 @@ static bool c_op_lw(struct riscv_t *rv, uint16_t inst)
 // CS-type
 static bool c_op_sw(struct riscv_t *rv, uint16_t inst)
 {
-    debug_print("Entered c.sw");
 
     uint32_t temp = 0;
     //                ....xxxx....xxxx
@@ -1332,7 +1307,7 @@ void rv_step(struct riscv_t *rv, int32_t cycles)
         c_op_fsw,       c_op_bnez,      c_op_fswsp, NULL, // 111
     };
 
-// clang-format on
+    // clang-format on
 
 #ifdef ENABLE_COMPUTED_GOTO
 #define DISPATCH()                                      \
@@ -1403,14 +1378,14 @@ quit:
             // dispatch this opcode
             TABLE_TYPE op = jump_table[index];
             assert(op);
-            rv->inst_len=INST_32;
+            rv->inst_len = INST_32;
             if (!op(rv, inst))
                 break;
 
             // increment the cycles csr
             rv->csr_cycle++;
         } else {
-// TODO: compressed instruction
+            // TODO: compressed instruction
             const uint16_t c_index = (inst & FR_C_15_13 >> 11) | (inst & FR_C_1_0);
             // TODO: table implement
             const c_opcode_t op = c_opcodes[c_index];
@@ -1421,8 +1396,6 @@ quit:
 
             // increment the cycles csr
             rv->csr_cycle++;
-        }
-    }
 }
 #endif  // ENABLE_COMPUTED_GOTO
 
@@ -1505,7 +1478,7 @@ void rv_reset(struct riscv_t *rv, riscv_word_t pc)
 
     // set the reset address
     rv->PC = pc;
-    rv->inst_len=INST_UNKNOWN;
+    rv->inst_len = INST_UNKNOWN;
 
     // set the default stack pointer
     rv->X[rv_reg_sp] = DEFAULT_STACK_ADDR;
