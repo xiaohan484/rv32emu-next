@@ -853,23 +853,26 @@ static bool c_op_lui(struct riscv_t *rv, uint16_t inst)
     if (rd == 2) {
         // C.ADDI16SP
         uint32_t tmp = (inst & 0x1000) >> 3;
-        tmp |= (inst & 0x40);
+        tmp |= (inst & 0x40) >> 2;
         tmp |= (inst & 0x20) << 1;
         tmp |= (inst & 0x18) << 4;
         tmp |= (inst & 0x4) << 3;
-        const int32_t imm = (tmp & 0x200) ? 0xfffffc | tmp : tmp;
-        if (imm == 0)
-            assert(!"Should not be zero.");
-        rv->X[rd] += imm;
+        const uint32_t imm = (tmp & 0x200) ? (0xfffffc00 | tmp) : tmp;
+
+        if (imm != 0)
+            rv->X[rd] += imm;
+        else { /*imm==0 is reserved */
+        }
     } else if (rd != 0) {
         // C.LUI
-        uint32_t tmp = (inst & 0x1000) << 5 | (inst & 0x7c) << 12;
-        const int32_t imm = (tmp & 0x20000) ? 0xfffc0000 | tmp : tmp;
-        if (imm == 0)
-            assert(!"Should not be zero.");
-        rv->X[rd] = imm;
+        uint32_t tmp = (inst & 0x1000) << 5 | (inst & 0x7c) << 10;
+        const int32_t imm = (tmp & 0x20000) ? (0xfffc0000 | tmp) : tmp;
+        if (imm != 0)
+            rv->X[rd] = imm;
+        else { /*imm==0 is reserved*/
+        }
     } else {
-        assert(!"Should be unreachbale.");
+        // HINTS
     }
 
     rv->PC += rv->inst_len;
@@ -886,10 +889,15 @@ static bool c_op_srli(struct riscv_t *rv, uint16_t inst)
     const uint32_t shamt = temp;
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
-    if (shamt & 0x10) {
-        assert(!"shamt[5]=1 Reserved");
-        return false;
-    }
+    // shamt[t]==1 are reserved
+    if (shamt & 0x20)
+        return true;
+    // HINTS
+    if (rs1 == 0)
+        return true;
+    // shamt ==0 is HINT
+    if (shamt == 0)
+        return true;
 
     rv->X[rs1] >>= shamt;
 
@@ -905,10 +913,15 @@ static bool c_op_srai(struct riscv_t *rv, uint16_t inst)
     const uint32_t shamt = temp;
     const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
 
-    if (shamt & 0x10) {
-        assert(!"shamt[5]=1 Reserved");
-        return false;
-    }
+    // shamt[5]=1 Reserved
+    if (shamt & 0x20)
+        return true;
+    // shame ==0 is HINT
+    if (shamt == 0)
+        return true;
+    // HINT
+    if (rs1 == rv_reg_zero)
+        return true;
 
     const uint32_t mask = 0x80000000 | rv->X[rs1];
     rv->X[rs1] >>= shamt;
