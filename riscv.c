@@ -836,18 +836,6 @@ static bool c_op_addi4spn(struct riscv_t *rv, uint16_t inst)
     return true;
 }
 
-static bool c_op_fsd(struct riscv_t *rv, uint16_t inst)
-{
-    rv->PC += rv->inst_len;
-    return true;
-}
-
-static bool c_op_fsw(struct riscv_t *rv, uint16_t inst)
-{
-    rv->PC += rv->inst_len;
-    return true;
-}
-
 static bool c_op_li(struct riscv_t *rv, uint16_t inst)
 {
     uint16_t tmp = (uint16_t)((inst & 0x1000) >> 7 | (inst & 0x7c) >> 2);
@@ -888,12 +876,159 @@ static bool c_op_lui(struct riscv_t *rv, uint16_t inst)
     return true;
 }
 
+// static bool c_op_XX(struct riscv_t *rv, uint16_t inst)
+static bool c_op_srli(struct riscv_t *rv, uint16_t inst)
+{
+    debug_print("Entered c.srli");
+
+    uint32_t temp = 0;
+    temp |= (inst & 0x1000) >> 7;
+    temp |= (inst & 0x007C) >> 2;
+
+    const uint32_t shamt = temp;
+    const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
+
+    if(shamt & 0x10){
+        assert(!"shamt[5]=1 Reserved");
+        return false;
+    }
+
+    rv->X[rs1] >>= shamt;
+
+    return true;
+}
+
+static bool c_op_srai(struct riscv_t *rv, uint16_t inst)
+{
+    debug_print("Entered c.srai");
+
+    uint32_t temp = 0;
+    temp |= (inst & 0x1000) >> 7;
+    temp |= (inst & 0x007C) >> 2;
+
+    const uint32_t shamt = temp;
+    const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
+
+    if(shamt & 0x10){
+        assert(!"shamt[5]=1 Reserved");
+        return false;
+    }
+
+    const uint32_t mask = 0x80000000 | rv->X[rs1];
+    rv->X[rs1] >>= shamt;
+
+    for(unsigned int i = 0; i < shamt; ++i){
+        rv->X[rs1] |= mask >> i;
+    }
+
+    return true;
+}
+
+static bool c_op_andi(struct riscv_t *rv, uint16_t inst)
+{
+    const uint16_t mask = (0x1000 & inst) << 3;    
+
+    uint16_t temp = 0;
+    for(int i = 0; i < 10; ++i){
+        temp |= (mask >> i);
+    }
+    temp |= (inst & 0x007C) >> 2;
+
+    const uint32_t imm = sign_extend_h(temp);
+    const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
+
+    rv->X[rs1] &= imm;
+
+    return true;
+}
+
 static bool c_op_misc_alu(struct riscv_t *rv, uint16_t inst)
 {
+    bool exec_result;
+
+    // Find actual instruction
+    switch((inst & 0x0C00) >> 10){
+    case 0: // C.SRLI
+        exec_result = c_op_srli(rv, inst);
+        break;
+    case 1: // C.SRAI
+        exec_result = c_op_srai(rv, inst);
+        break;
+    case 2: // C.ANDI
+        exec_result = c_op_andi(rv, inst);
+        break;
+    case 3: // Arithmistic
+        uint32_t temp = 0;
+        temp |= (inst & 0x1000) >> 10;
+        temp |= (inst & 0x0060) >> 5;
+
+        const uint32_t funct = temp;
+        const uint32_t rs1 = c_dec_rs1c(inst) | 0x08;
+        const uint32_t rs2 = c_dec_rs2c(inst) | 0x08;
+        const uint32_t rd = rs1;
+
+        switch(funct){
+        case 0: // SUB
+            debug_print("Entered c.sub");
+            rv->X[rd] = rv->X[rs1] - rv->X[rs2];
+            break;
+        case 1: // XOR
+            debug_print("Entered c.xor");
+            rv->X[rd] = rv->X[rs1] ^ rv->X[rs2];
+            break;
+        case 2: // OR
+            debug_print("Entered c.or");
+            rv->X[rd] = rv->X[rs1] | rv->X[rs2];
+            break;
+        case 3: // AND
+            debug_print("Entered c.and");
+            rv->X[rd] = rv->X[rs1] & rv->X[rs2];
+            break;
+        case 4:
+            assert(!"RV32F instructions");
+            break;
+        case 5:
+            assert(!"RV32F instructions");
+            break;
+        case 6:
+        case 7:
+            assert(!"Instruction preserved");
+            break;
+        default:
+            assert(!"Should not be reachable");
+            break;
+        }
+        break;
+    default:
+        assert(!"Should not be reachable");
+        break;
+    }
+
+    if(!exec_result){
+        return false;
+    }
+
     rv->PC += rv->inst_len;
     return true;
 }
 
+static bool c_op_slli(struct riscv_t *rv, uint16_t inst)
+{
+    uint32_t temp = 0;
+    temp |= (inst & FCI_IMM_12) >> 7;
+    temp |= (inst & FCI_IMM_6_2) >> 2;
+
+    const uint32_t shamt = temp;
+    const uint32_t rd = c_dec_rd(inst);
+
+    if(rd){
+        rv->X[rd] <<= shamt;
+    }
+
+    rv->PC += rv->inst_len;
+    return true;
+}
+	
 // CJ-type
 static bool c_op_j(struct riscv_t *rv, uint16_t inst)
 {
@@ -901,7 +1036,7 @@ static bool c_op_j(struct riscv_t *rv, uint16_t inst)
     const uint32_t imm = sign_extend_h(c_dec_cjtype_imm(inst));
 
     rv->PC += imm;
-    return true;
+    return false;
 }
 
 static bool c_op_jal(struct riscv_t *rv, uint16_t inst)
@@ -911,7 +1046,7 @@ static bool c_op_jal(struct riscv_t *rv, uint16_t inst)
     rv->X[1] = rv->PC + 2;
     rv->PC += imm;
 
-    return true;
+    return false;
 }
 // CB-type
 
@@ -930,7 +1065,7 @@ static bool c_op_beqz(struct riscv_t *rv, uint16_t inst)
         rv->PC += rv->inst_len;
     }
 
-    return true;
+    return false;
 }
 
 static bool c_op_bnez(struct riscv_t *rv, uint16_t inst)
@@ -947,7 +1082,7 @@ static bool c_op_bnez(struct riscv_t *rv, uint16_t inst)
         rv->PC += rv->inst_len;
     }
 
-    return true;
+    return false
 }
 #else
 #define c_op_addi4spn NULL
@@ -977,6 +1112,17 @@ static bool c_op_jal(struct riscv_t *rv, uint16_t inst)
 // CR-type
 static bool c_op_slli(struct riscv_t *rv, uint16_t inst)
 {
+    uint32_t temp = 0;
+    temp |= (inst & FCI_IMM_12) >> 7;
+    temp |= (inst & FCI_IMM_6_2) >> 2;
+
+    const uint32_t shamt = temp;
+    const uint32_t rd = c_dec_rd(inst);
+
+    if(rd){
+        rv->X[rd] <<= shamt;
+    }
+
     rv->PC += rv->inst_len;
     return true;
 }
@@ -1004,26 +1150,52 @@ static bool c_op_lwsp(struct riscv_t *rv, uint16_t inst)
 
 static bool c_op_cr(struct riscv_t *rv, uint16_t inst)
 {
-    const rs1 = c_dec_rs1(inst);
+    const uint32_t rs1 = c_dec_rs1(inst);
+    const uint32_t rs2 = c_dec_rs2(inst);
+    const uint32_t rd = rs1;
 
-    switch((inst & 0x1000) >> 12){
-    case 0: // c.jr
-        debug_print("Entered c.jr");
-        rv->PC = rv->X[rs1];
+    switch ((inst & 0x1000) >> 12) {
+    case 0:  
+        if(rs2){
+            debug_print("Entered c.mv");
+            rv->X[rd] = rv->X[rs2];
+            rv->PC += rv->inst_len;
+        }
+        else{
+            debug_print("Entered c.jr");
+            rv->PC = rv->X[rs1];
+
+            return false;
+        }
         break;
-    case 1: // c.jalr
-        debug_print("Entered c.jalr");
-        rv->X[1] = rv->PC + 2;
-        rv->PC = rv->X[rs1];
+    case 1:
+        if(rs1){
+            if(rs2){
+                debug_print("Entered c.add");
+                rv->X[rd] = rv->X[rs1] + rv->X[rs2];
+                rv->PC += rv->inst_len;
+            }
+            else{
+                debug_print("Entered c.jalr");
+                rv->X[1] = rv->PC + 2;
+                rv->PC = rv->X[rs1];
+
+                if (rv->PC & 1) {
+                    rv_except_inst_misaligned(rv, rv->PC);
+                    return false;
+                }
+
+                return false;
+            }
+        }
+        else{
+            debug_print("Entered c.ebreak");
+            rv->io.on_ebreak(rv);
+        }
         break;
     default:
         assert(!"Should be unreachbale.");
         break;
-    }
-
-    if(rv->PC & 1){
-        rv_except_inst_misaligned(rv, rv->PC);
-        return false;
     }
 
     return true;
