@@ -28,6 +28,25 @@ static void rv_except_inst_misaligned(struct riscv_t *rv, uint32_t old_pc)
     rv->csr_mcause = code;
 }
 
+static void rv_breakpoint(struct riscv_t *rv, uint32_t old_pc)
+{
+    const uint32_t base = rv->csr_mtvec & ~0x3;
+    const uint32_t mode = rv->csr_mtvec & 0x3;
+
+    const uint32_t code = 3;  // breakpoint exception
+
+    rv->csr_mepc = old_pc;
+    rv->csr_mtval = rv->PC;
+
+    switch (mode) {
+    case 0:  // DIRECT
+        rv->PC = base;
+        break;
+    case 1:  // VECTORED
+        rv->PC = base + 4 * code;
+        break;
+    }
+
 static void rv_except_load_misaligned(struct riscv_t *rv, uint32_t addr)
 {
     const uint32_t base = rv->csr_mtvec & ~0x3;
@@ -72,10 +91,27 @@ static void rv_except_store_misaligned(struct riscv_t *rv, uint32_t addr)
     rv->csr_mcause = code;
 }
 
-static void rv_except_illegal_inst(struct riscv_t *rv UNUSED)
+static void rv_except_illegal_inst(struct riscv_t *rv, uint32_t inst)
 {
-    /* TODO: dump more information */
-    assert(!"illegal instruction");
+    /* Jump to the base and record information to mcause */
+    const uint32_t base = rv->csr_mtvec & ~0x3;
+    const uint32_t mode = rv->csr_mtvec & 0x3;
+
+    const uint32_t code = 2;  // Illegal instruction code
+
+    rv->csr_mepc = rv->PC;
+    rv->csr_mtval = inst;
+
+    switch (mode) {
+    case 0:  // DIRECT
+        rv->PC = base;
+        break;
+    case 1:  // VECTORED
+        rv->PC = base + 4 * code;
+        break;
+    }
+
+    rv->csr_mcause = code;
 }
 
 static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
@@ -119,7 +155,7 @@ static bool op_load(struct riscv_t *rv, uint32_t inst UNUSED)
         rv->X[rd] = rv->io.mem_read_s(rv, addr);
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv, inst);
         return false;
     }
     // step over instruction
@@ -182,7 +218,7 @@ static bool op_op_imm(struct riscv_t *rv, uint32_t inst)
         rv->X[rd] = rv->X[rs1] & imm;
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv, inst);
         return false;
     }
 
@@ -244,7 +280,7 @@ static bool op_store(struct riscv_t *rv, uint32_t inst)
         rv->io.mem_write_w(rv, addr, data);
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv, inst);
         return false;
     }
 
@@ -292,7 +328,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             rv->X[rd] = rv->X[rs1] & rv->X[rs2];
             break;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv, inst);
             return false;
         }
         break;
@@ -357,7 +393,7 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             }
         } break;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv, inst);
             return false;
         }
         break;
@@ -371,12 +407,12 @@ static bool op_op(struct riscv_t *rv, uint32_t inst)
             rv->X[rd] = ((int32_t) rv->X[rs1]) >> (rv->X[rs2] & 0x1f);
             break;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv, inst);
             return false;
         }
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv, inst);
         return false;
     }
     // step over instruction
@@ -436,7 +472,7 @@ static bool op_branch(struct riscv_t *rv, uint32_t inst)
         taken = (rv->X[rs1] >= rv->X[rs2]);
         break;
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv, inst);
         return false;
     }
     // perform branch action
@@ -597,20 +633,20 @@ static bool op_system(struct riscv_t *rv, uint32_t inst)
             rv->io.on_ecall(rv);
             break;
         case 1:  // EBREAK
-            rv->io.on_ebreak(rv);
+            rv_breakpoint(rv,rv->PC);
             break;
         case 0x002:  // URET
         case 0x102:  // SRET
         case 0x202:  // HRET
         case 0x105:  // WFI
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv, inst);
             return false;
         case 0x302:  // MRET
             rv->PC = rv->csr_mepc;
             // this is a branch
             return false;
         default:
-            rv_except_illegal_inst(rv);
+            rv_except_illegal_inst(rv, inst);
             return false;
         }
         break;
@@ -649,7 +685,7 @@ static bool op_system(struct riscv_t *rv, uint32_t inst)
     }
 #endif  // ENABLE_Zicsr
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv, inst);
         return false;
     }
 
@@ -745,7 +781,7 @@ static bool op_amo(struct riscv_t *rv, uint32_t inst)
         break;
     }
     default:
-        rv_except_illegal_inst(rv);
+        rv_except_illegal_inst(rv, inst);
         return false;
     }
 
@@ -770,30 +806,12 @@ static bool op_amo(struct riscv_t *rv, uint32_t inst)
 #define op_nmsub OP_UNIMP
 #define op_nmadd OP_UNIMP
 
-/* TODO: function implemetation */
-#define c_op_addi4spn NULL
-#define c_op_addi NULL
-#define c_op_slli NULL
-#define c_op_fld NULL
-#define c_op_jal NULL
-#define c_op_fldsp NULL
-#define c_op_lw NULL
-#define c_op_li NULL
-#define c_op_lwsp NULL
-#define c_op_flw NULL
-#define c_op_lui NULL
-#define c_op_flwsp NULL
-#define c_op_misc_alu NULL
-#define c_op_jalr NULL
-#define c_op_fsd NULL
-#define c_op_j NULL
-#define c_op_fsdsp NULL
-#define c_op_sw NULL
-#define c_op_beqz NULL
-#define c_op_swsp NULL
-#define c_op_fsw NULL
-#define c_op_bnez NULL
-#define c_op_fswsp NULL
+// handler for all unimplemented opcodes
+static bool op_unimp(struct riscv_t *rv, uint32_t inst UNUSED)
+{
+    rv_except_illegal_inst(rv, inst);
+    return false;
+}
 
 #define ENABLE_RV32C 1
 #ifdef ENABLE_RV32C
@@ -1259,12 +1277,6 @@ static bool c_op_sw(struct riscv_t *rv, uint16_t inst)
     return true;
 }
 
-static bool c_op_fld(struct riscv_t *rv, uint16_t inst)
-{
-    rv->PC += rv->inst_len;
-    return true;
-}
-
 static bool c_op_flw(struct riscv_t *rv, uint16_t inst)
 {
     rv->PC += rv->inst_len;
@@ -1275,7 +1287,7 @@ static bool c_op_flw(struct riscv_t *rv, uint16_t inst)
 // handler for all unimplemented opcodes
 static bool op_unimp(struct riscv_t *rv, uint32_t inst UNUSED)
 {
-    rv_except_illegal_inst(rv);
+    rv_except_illegal_inst(rv, inst);
     return false;
 }
 
