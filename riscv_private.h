@@ -101,6 +101,12 @@ enum {
 };
 // clang-format off
 
+enum {
+    INST_UNKNOWN = 0,
+    INST_16 = 2,
+    INST_32 = 4,
+};
+
 struct riscv_t {
     bool halt;
 
@@ -127,11 +133,7 @@ struct riscv_t {
     uint32_t csr_mbadaddr;
     
     // current instruction length
-    enum {
-        INST_UNKNOWN = 0,
-        INST_16 = 0x02,
-        INST_32 = 0x04,
-    }inst_len;
+    uint8_t inst_len;
 };
 
 // decode rd field

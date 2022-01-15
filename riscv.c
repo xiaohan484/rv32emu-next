@@ -23,7 +23,7 @@ static void rv_except_inst_misaligned(struct riscv_t *rv, uint32_t old_pc)
     rv->csr_mtval = rv->PC;
 
     switch (mode) {
-    case 0:  // DIRECT  : All exceptions set PC to base
+    case 0:  // DIRECT: All exceptions set PC to base
         rv->PC = base;
         break;
     case 1:  // VECTORED: Asynchronous interrupts set PC to base + 4 * code
@@ -52,7 +52,7 @@ static void rv_except_load_misaligned(struct riscv_t *rv, uint32_t addr)
     rv->csr_mtval = addr;
 
     switch (mode) {
-    case 0:  // DIRECT  : All exceptions set PC to base
+    case 0:  // DIRECT: All exceptions set PC to base
         rv->PC = base;
         break;
     case 1:  // VECTORED: Asynchronous interrupts set PC to base + 4 * code
@@ -81,7 +81,7 @@ static void rv_except_store_misaligned(struct riscv_t *rv, uint32_t addr)
     rv->csr_mtval = addr;
 
     switch (mode) {
-    case 0:  // DIRECT  : All exceptions set PC to base
+    case 0:  // DIRECT: All exceptions set PC to base
         rv->PC = base;
         break;
     case 1:  // VECTORED: Asynchronous interrupts set PC to base + 4 * code
@@ -110,7 +110,7 @@ static void rv_except_illegal_inst(struct riscv_t *rv, uint32_t inst)
     rv->csr_mtval = inst;
 
     switch (mode) {
-    case 0:  // DIRECT  : All exceptions set PC to base
+    case 0:  // DIRECT: All exceptions set PC to base
         rv->PC = base;
         break;
     case 1:  // VECTORED: Asynchronous interrupts set PC to base + 4 * code
